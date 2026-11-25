@@ -1,0 +1,21 @@
+# Datos y artefactos pesados: viven en Google Drive / Releases, nunca en git
+dataset*/
+etiquetas/
+crudas/
+*.jpg
+*.jpeg
+*.png
+*.zip
+*.tflite
+*.onnx
+*.pt
+*.pth
+checkpoints/
+runs/
+# Python
+__pycache__/
+.venv/
+.ipynb_checkpoints/
+# Claves
+*firebase-adminsdk*.json
+.env
