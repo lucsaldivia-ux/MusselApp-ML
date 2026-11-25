@@ -22,6 +22,7 @@ src/         split_sin_fuga.py (separa entrenamiento/validación/prueba por band
              validar_calibre.py (mide el error del calibre contra la regla: meta del go/no-go)
              evaluar_tflite.py (mide el .tflite de la app contra las metas del go/no-go, como el teléfono)
              revisar_etiquetas.py (revisa cada lote etiquetado contra la planilla antes de entrenar)
+             preparar_externo.py (deja solo la clase mejillón de un dataset público para pre-entrenar)
              dataset_sintetico.py (fotos dibujadas para probar el pipeline sin fotos reales)
 modelos/     README.md con la versión, métricas y fecha de cada modelo
 CONTRATO.md  formato del modelo que espera la app (no cambiar sin avisar a Ramón)
