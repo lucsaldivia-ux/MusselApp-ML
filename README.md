@@ -17,7 +17,7 @@ Entrenamiento del modelo de **conteo automático de mitílidos** (chorito / chol
 ## Estructura
 
 ```
-notebooks/   01_preparar_dataset · 02_entrenar · 03_evaluar_exportar (Colab/Kaggle)
+notebooks/   entrenar_rfdetr.ipynb (Colab gratis: prepara, entrena, mide y exporta)
 src/         split_sin_fuga.py (separa entrenamiento/validación/prueba por bandeja)
 modelos/     README.md con la versión, métricas y fecha de cada modelo
 CONTRATO.md  formato del modelo que espera la app (no cambiar sin avisar a Ramón)

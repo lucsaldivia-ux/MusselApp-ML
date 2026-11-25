@@ -15,18 +15,30 @@ En `app/src/main/assets/ml/`:
 
 ## modelo.json
 
+Modelo: **RF-DETR Nano** (Apache 2.0), exportado con `rfdetr==1.12.0` (ver `notebooks/entrenar_rfdetr.ipynb`).
+
 ```json
 {
   "version": "model_v1",
+  "arquitectura": "RF-DETR Nano (Apache 2.0)",
   "archivo": "model_v1.tflite",
-  "entrada": { "ancho": 384, "alto": 384, "canales": "RGB", "tipo": "uint8", "normalizacion": "0-255" },
+  "entrada": { "formato": "NHWC float32", "normalizacion": "ImageNet (media 0.485,0.456,0.406; desv. 0.229,0.224,0.225)" },
   "etiquetas": ["chorito", "cholga", "referencia"],
-  "salida": "cajas [N,4] (ymin,xmin,ymax,xmax normalizadas 0-1), clases [N], confianzas [N], N <= 300",
   "umbral_confianza": 0.40,
-  "nms_iou": 0.50,
   "referencia_mm": 40.0
 }
 ```
+
+Lo que hay que saber en la app (de la documentación de RF-DETR, 6-nov-2026):
+
+- **Entrada:** imagen RGB redimensionada al tamaño del tensor de entrada (384×384 en Nano), en **float32** y
+  normalizada con media/desviación de ImageNet. No es uint8 de 0 a 255.
+- **Salidas sin nombre** (`output_0`, `output_1`): las **cajas** son el tensor de rango 3 con última dimensión 4
+  (centro x, centro y, ancho, alto, normalizados 0-1); los **puntajes** son el otro tensor de rango 3, a los que se
+  aplica sigmoide. ⚠ Con 3 clases, el tensor de puntajes también puede terminar en 4: identificar las salidas por
+  su **orden** con el archivo `.rfdetr.json` que acompaña a cada `.tflite`. Se confirma en el paso 9 con el modelo real.
+- **INT8 es de rango dinámico** (pesos int8, cálculos en float). Si pierde más de 3 puntos de mAP, se usa el FP16.
+- La exportación a TFLite de RF-DETR es **experimental**: si falla, la alternativa es ONNX Runtime para Android (MIT).
 
 ## Formato en Firestore (lo que sube la app y lee el portal)
 
