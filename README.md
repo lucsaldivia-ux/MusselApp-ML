@@ -21,6 +21,7 @@ notebooks/   entrenar_rfdetr.ipynb (Colab gratis: prepara, entrena, mide y expor
 src/         split_sin_fuga.py (separa entrenamiento/validación/prueba por bandeja)
              validar_calibre.py (mide el error del calibre contra la regla: meta del go/no-go)
              evaluar_tflite.py (mide el .tflite de la app contra las metas del go/no-go, como el teléfono)
+             revisar_etiquetas.py (revisa cada lote etiquetado contra la planilla antes de entrenar)
              dataset_sintetico.py (fotos dibujadas para probar el pipeline sin fotos reales)
 modelos/     README.md con la versión, métricas y fecha de cada modelo
 CONTRATO.md  formato del modelo que espera la app (no cambiar sin avisar a Ramón)
@@ -34,6 +35,17 @@ CONTRATO.md  formato del modelo que espera la app (no cambiar sin avisar a Ramó
    chorito de cholga (son de otras especies y lugares).
 
 Etiquetas: `chorito`, `cholga`, `referencia` (cuadrado negro de 40 mm) y `duda` (se revisa y se excluye).
+
+## Revisar un lote etiquetado (antes de entregarlo)
+
+Compara los recuadros de cada foto con el conteo a mano de `planilla_fotos` (descargada como CSV) y avisa
+individuos sin etiquetar, fotos sin referencia, duplicados, exceso de `duda`, nombres mal puestos y fotos `_cal`
+incompletas. Termina con código 1 si hay errores.
+
+```
+python src/revisar_etiquetas.py --coco result.json --planilla planilla_fotos.csv [--autor JC]
+python src/revisar_etiquetas.py --prueba
+```
 
 ## Separar el dataset sin fuga
 
