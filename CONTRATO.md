@@ -10,7 +10,7 @@ En `app/src/main/assets/ml/`:
 | Archivo | Contenido |
 |---|---|
 | `model_vN.tflite` | Modelo cuantizado (int8; fp16 si int8 pierde más de 3 puntos de mAP) |
-| `labels.txt` | Una etiqueta por línea, en este orden: `chorito`, `cholga`, `referencia` (columnas 1, 2 y 3 de los puntajes) |
+| `labels.txt` | Una etiqueta por línea, en este orden: `chorito`, `cholga`, `referencia` (columnas 0, 1 y 2 de los puntajes) |
 | `modelo.json` | Descripción de entrada y salida (abajo) |
 
 ## modelo.json
@@ -34,12 +34,13 @@ Lo que hay que saber en la app (**verificado el 2026-11-25** exportando RF-DETR 
 | Tensor | Forma | Contenido |
 |---|---|---|
 | Entrada 0 | `[1, 384, 384, 3]` float32 | Imagen RGB redimensionada a 384×384, normalizada con media/desviación de ImageNet (no uint8) |
-| Salida 0 | `[1, 300, 4]` float32 | **Puntajes** sin sigmoide. Columna 0 sin uso; 1 = chorito, 2 = cholga, 3 = referencia |
+| Salida 0 | `[1, 300, 4]` float32 | **Puntajes** sin sigmoide. Columna 0 = chorito, 1 = cholga, 2 = referencia; la 3 no se usa |
 | Salida 1 | `[1, 300, 4]` float32 | **Cajas**: centro x, centro y, ancho y alto, normalizados 0-1 |
 
 - ⚠ Con 3 clases **las dos salidas miden `[1, 300, 4]`** y en INT8 pierden el nombre: se toman **por posición**
   (0 = puntajes, 1 = cajas). En FP16/FP32 se llaman `labels` y `dets`.
-- El índice de clase es el `category_id` del COCO con que se entrenó (1 a 3); la columna 0 se ignora.
+- La columna c es la línea c de `labels.txt` (0 = chorito). La última columna sobra y se ignora.
+- Verificado con un modelo entrenado y exportado: 28 de 28 individuos de una foto de prueba con la clase correcta.
 - Post-proceso en la app: `SalidaRfDetr.decodificar(...)` (rama `feature/ml-reglas` de la app), con pruebas.
 - Tamaños: INT8 de rango dinámico ~30 MB (el que va en la app), FP16 ~55 MB, FP32 ~109 MB.
 - Si INT8 pierde más de 3 puntos de mAP frente a FP32, se usa FP16.
