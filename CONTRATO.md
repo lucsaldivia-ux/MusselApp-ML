@@ -43,8 +43,8 @@ Lo que hay que saber en la app (**verificado el 2026-11-25** exportando RF-DETR 
 - Verificado con un modelo entrenado y exportado: 28 de 28 individuos de una foto de prueba con la clase correcta.
 - Post-proceso en la app: `SalidaRfDetr.decodificar(...)` (rama `feature/ml-reglas` de la app), con pruebas.
 - Tamaños: INT8 de rango dinámico ~30 MB (el que va en la app), FP16 ~55 MB, FP32 ~109 MB.
-- Si INT8 pierde más de 3 puntos frente a FP32, se usa FP16. Se mide con  (procesa como la app).
-- Con XNNPACK (activo por defecto en LiteRT), en un PC: INT8 ~0,22 s, FP16 y FP32 ~0,21 s por foto ().
+- Si INT8 pierde más de 3 puntos frente a FP32, se usa FP16. Se mide con `src/evaluar_tflite.py` (procesa como la app).
+- Con XNNPACK (activo por defecto en LiteRT), en un PC: INT8 ~0,22 s, FP16 y FP32 ~0,21 s por foto (`model-v0-sintetico`).
 - La exportación a TFLite de RF-DETR es **experimental**; la alternativa es ONNX Runtime para Android (MIT).
 
 ## Formato en Firestore (lo que sube la app y lee el portal)
