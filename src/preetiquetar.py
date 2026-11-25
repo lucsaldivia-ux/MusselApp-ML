@@ -189,13 +189,34 @@ def preetiquetar(fotos, detectar, salida, carpeta_ls='fotos', planilla=None, esp
     return tareas, resumen
 
 
-def detector_rfdetr(ruta_modelo, umbral):
+def teselas(ancho, alto, n, solape=0.2):
+    """Cuadrícula de n×n trozos que se solapan un 20 %, para que ninguna concha quede cortada en todos."""
+    if n <= 1:
+        return [(0, 0, ancho, alto)]
+    tw, th = ancho / (n - (n - 1) * solape), alto / (n - (n - 1) * solape)
+    paso_x, paso_y = tw * (1 - solape), th * (1 - solape)
+    return [(int(i * paso_x), int(j * paso_y), int(min(ancho, i * paso_x + tw)), int(min(alto, j * paso_y + th)))
+            for j in range(n) for i in range(n)]
+
+
+def detector_rfdetr(ruta_modelo, umbral, n_teselas=1):
+    """Con n_teselas > 1 detecta en trozos: el modelo ve cada foto a 384 px, y en una muestra con cientos de
+    conchas cada una quedaría de pocos píxeles. Las cajas cortadas por el borde de un trozo se descartan si otro
+    trozo la ve entera (lo resuelve limpiar() al quedarse con la de mayor puntaje)."""
     from rfdetr import RFDETR
     modelo = RFDETR.from_checkpoint(ruta_modelo)
 
     def detectar(img):
-        det = modelo.predict(img, threshold=umbral)
-        return [(float(b[0]), float(b[1]), float(b[2]), float(b[3]), float(p)) for b, p in zip(det.xyxy, det.confidence)]
+        cajas = []
+        for x0, y0, x1, y1 in teselas(img.width, img.height, n_teselas):
+            det = modelo.predict(img.crop((x0, y0, x1, y1)), threshold=umbral)
+            for b, p in zip(det.xyxy, det.confidence):
+                bx0, by0, bx1, by1 = float(b[0]) + x0, float(b[1]) + y0, float(b[2]) + x0, float(b[3]) + y0
+                # caja pegada al borde interior de un trozo: probablemente cortada; baja su puntaje
+                borde = min(bx0 - x0, by0 - y0, x1 - bx1, y1 - by1) if n_teselas > 1 else 99
+                interior = not (bx0 <= 1 or by0 <= 1 or bx1 >= img.width - 1 or by1 >= img.height - 1)
+                cajas.append((bx0, by0, bx1, by1, float(p) * (0.5 if borde < 3 and interior else 1.0)))
+        return cajas
     return detectar
 
 
@@ -242,6 +263,9 @@ def autoprueba():
         revisar(tareas[0]['data']['image'] == '/data/local-files/?d=fotos/M201_LS_01.jpg', 'ruta de la imagen')
         revisar(os.path.isfile(os.path.join(d, 'vista', 'M201_LS_01_vista.jpg')), 'genera la vista previa')
         revisar(especies_planilla(planilla)['M201'][0] == 'cholga', 'especie desde la planilla')
+        t = teselas(1600, 1200, 3)
+        revisar(len(t) == 9 and t[0][:2] == (0, 0) and t[-1][2:] == (1600, 1200) and t[1][0] < t[0][2],
+                f'teselas 3×3 cubren la foto y se solapan: {t[:2]}…{t[-1]}')
     print('\nAutoprueba ' + ('OK' if not fallas else f'con {fallas} fallas'))
     return 1 if fallas else 0
 
@@ -253,6 +277,7 @@ def main():
     ap.add_argument('--planilla', help='planilla_fotos en CSV (para saber la especie de cada bandeja)')
     ap.add_argument('--especie', choices=['chorito', 'cholga', 'duda'], help='forzar una especie para todas')
     ap.add_argument('--umbral', type=float, default=UMBRAL)
+    ap.add_argument('--teselas', type=int, default=1, help='partir cada foto en N×N trozos (muestras densas: 2 o 3)')
     ap.add_argument('--autor', help='solo las fotos de estas iniciales (M200_LS_01.jpg → LS)')
     ap.add_argument('--carpeta-ls', default='fotos', help='subcarpeta de las fotos dentro de la raíz de Label Studio')
     ap.add_argument('--salida', default='tareas.json')
@@ -270,7 +295,7 @@ def main():
     if a.vista:
         os.makedirs(a.vista, exist_ok=True)
     os.makedirs(os.path.dirname(os.path.abspath(a.salida)), exist_ok=True)
-    preetiquetar(fotos, detector_rfdetr(a.modelo, a.umbral), a.salida, a.carpeta_ls, a.planilla, a.especie, a.vista)
+    preetiquetar(fotos, detector_rfdetr(a.modelo, a.umbral, a.teselas), a.salida, a.carpeta_ls, a.planilla, a.especie, a.vista)
     return 0
 
 
