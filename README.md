@@ -23,6 +23,7 @@ src/         split_sin_fuga.py (separa entrenamiento/validación/prueba por band
              evaluar_tflite.py (mide el .tflite de la app contra las metas del go/no-go, como el teléfono)
              revisar_etiquetas.py (revisa cada lote etiquetado contra la planilla antes de entrenar)
              preparar_externo.py (deja solo la clase mejillón de un dataset público para pre-entrenar)
+             preetiquetar.py (dibuja los recuadros de conchas y referencia para revisarlos en Label Studio)
              dataset_sintetico.py (fotos dibujadas para probar el pipeline sin fotos reales)
 modelos/     README.md con la versión, métricas y fecha de cada modelo
 CONTRATO.md  formato del modelo que espera la app (no cambiar sin avisar a Ramón)
@@ -36,6 +37,37 @@ CONTRATO.md  formato del modelo que espera la app (no cambiar sin avisar a Ramó
    chorito de cholga (son de otras especies y lugares).
 
 Etiquetas: `chorito`, `cholga`, `referencia` (cuadrado negro de 40 mm) y `duda` (se revisa y se excluye).
+
+## Pre-etiquetado (ahorra la mayor parte del etiquetado)
+
+El modelo pre-entrenado dibuja los recuadros de cada concha y un detector clásico el de la referencia. La especie sale
+de la planilla: bandeja solo de choritos → `chorito`, solo de cholgas → `cholga`, mezclada → `duda` (hay que elegir
+una por una). En Label Studio solo queda **revisar**: borrar recuadros de más, dibujar los que falten, ajustar bordes
+y, en bandejas mezcladas, cambiar `duda` por la especie.
+
+1. Sube tus fotos a Drive `dataset_v1/crudas/` y la planilla descargada como CSV a `dataset_v1/planilla_fotos.csv`.
+2. En Colab: secciones 1 y **3b** (pon tus iniciales en `AUTOR`). Deja `dataset_v1/preetiquetas/tareas_<INICIALES>.json`
+   y vistas previas en `dataset_v1/preetiquetas/vista/`.
+3. Copia tus fotos a una carpeta de tu PC, por ejemplo `C:\MusselApp-fotos\fotos\` (mismos nombres), y abre Label
+   Studio así (PowerShell):
+   ```
+   $env:LABEL_STUDIO_LOCAL_FILES_SERVING_ENABLED = "true"
+   $env:LABEL_STUDIO_LOCAL_FILES_DOCUMENT_ROOT = "C:\MusselApp-fotos"
+   label-studio start
+   ```
+4. Crea el proyecto con la plantilla de `equipo.md` §4. En **Settings → Cloud Storage → Add Source Storage** elige
+   *Local files*, ruta absoluta `C:\MusselApp-fotos\fotos`, guarda (no hace falta *Sync*).
+5. **Import** → sube `tareas_<INICIALES>.json`. Cada foto aparece con los recuadros propuestos (en gris claro, como
+   predicción): ábrela, corrige y envía.
+
+Si el paso 4–5 da problemas, se etiqueta como siempre (subiendo las fotos), y las vistas previas sirven de guía.
+Probado con fotos reales de cholgas (en olla, sin bandeja): en acercamientos encuentra todas; en montones con
+umbral 0,15–0,20 propone unas 10 de ~20 (las tapadas por otras no). Con conchas separadas en bandeja debería
+rendir mucho mejor. La importación en Label Studio **no está probada** todavía.
+
+```
+python src/preetiquetar.py --prueba
+```
 
 ## Revisar un lote etiquetado (antes de entregarlo)
 

@@ -29,7 +29,7 @@ import tempfile
 import numpy as np
 from PIL import Image, ImageDraw, ImageOps
 
-UMBRAL = 0.40
+UMBRAL = 0.20   # bajo a propósito: borrar un recuadro sobrante es más rápido que dibujar uno que falta
 IOU_DUPLICADO = 0.5
 EXTENSIONES = ('.jpg', '.jpeg', '.png')
 COLORES = {'chorito': '#0F766E', 'cholga': '#C76C05', 'referencia': '#1E40AF', 'duda': '#9CA3AF'}
@@ -253,6 +253,7 @@ def main():
     ap.add_argument('--planilla', help='planilla_fotos en CSV (para saber la especie de cada bandeja)')
     ap.add_argument('--especie', choices=['chorito', 'cholga', 'duda'], help='forzar una especie para todas')
     ap.add_argument('--umbral', type=float, default=UMBRAL)
+    ap.add_argument('--autor', help='solo las fotos de estas iniciales (M200_LS_01.jpg → LS)')
     ap.add_argument('--carpeta-ls', default='fotos', help='subcarpeta de las fotos dentro de la raíz de Label Studio')
     ap.add_argument('--salida', default='tareas.json')
     ap.add_argument('--vista', help='carpeta para vistas previas con los recuadros dibujados')
@@ -262,7 +263,13 @@ def main():
         return autoprueba()
     if not a.modelo or not a.fotos:
         ap.error('faltan --modelo y --fotos (o usa --prueba)')
-    fotos = sorted(os.path.join(a.fotos, f) for f in os.listdir(a.fotos) if f.lower().endswith(EXTENSIONES))
+    fotos = sorted(os.path.join(a.fotos, f) for f in os.listdir(a.fotos) if f.lower().endswith(EXTENSIONES)
+                   and (not a.autor or f'_{a.autor.upper()}_' in f.upper()))
+    if not fotos:
+        ap.error(f'no hay fotos en {a.fotos}' + (f' con las iniciales {a.autor}' if a.autor else ''))
+    if a.vista:
+        os.makedirs(a.vista, exist_ok=True)
+    os.makedirs(os.path.dirname(os.path.abspath(a.salida)), exist_ok=True)
     preetiquetar(fotos, detector_rfdetr(a.modelo, a.umbral), a.salida, a.carpeta_ls, a.planilla, a.especie, a.vista)
     return 0
 
