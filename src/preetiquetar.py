@@ -102,15 +102,33 @@ def iou(a, b):
     return inter / union if union > 0 else 0.0
 
 
+def dentro(a, b):
+    """Fracción de la caja a que queda dentro de la caja b."""
+    ix = max(0.0, min(a[2], b[2]) - max(a[0], b[0]))
+    iy = max(0.0, min(a[3], b[3]) - max(a[1], b[1]))
+    area = (a[2] - a[0]) * (a[3] - a[1])
+    return ix * iy / area if area > 0 else 0.0
+
+
+def area(c):
+    return (c[2] - c[0]) * (c[3] - c[1])
+
+
 def limpiar(cajas, referencia):
-    """Quita duplicados y las cajas que en realidad son la referencia. cajas: [(x0, y0, x1, y1, puntaje)]."""
+    """Quita duplicados, pedazos y las cajas que en realidad son la referencia. cajas: [(x0, y0, x1, y1, puntaje)].
+
+    Un "pedazo" es una caja que queda casi entera (≥ 75 %) dentro de otra bastante más grande (≥ 1,4 veces su área):
+    pasa con el teselado, cuando una concha queda cortada por el borde de un trozo y la foto completa u otro trozo la ve
+    entera.
+    """
     elegidas = []
     for c in sorted(cajas, key=lambda c: -c[4]):
         if referencia and iou(c[:4], referencia) > 0.3:
             continue
         if all(iou(c[:4], e[:4]) <= IOU_DUPLICADO for e in elegidas):
             elegidas.append(c)
-    return elegidas
+    return [c for c in elegidas
+            if not any(e is not c and area(e) >= 1.4 * area(c) and dentro(c, e) >= 0.75 for e in elegidas)]
 
 
 def resultado_ls(caja, etiqueta, ancho, alto, puntaje=None, n=0):
@@ -208,12 +226,16 @@ def detector_rfdetr(ruta_modelo, umbral, n_teselas=1):
 
     def detectar(img):
         cajas = []
-        for x0, y0, x1, y1 in teselas(img.width, img.height, n_teselas):
+        trozos = teselas(img.width, img.height, n_teselas)
+        if n_teselas > 1:
+            trozos = [(0, 0, img.width, img.height)] + trozos   # la foto completa ve enteras las conchas grandes
+        for x0, y0, x1, y1 in trozos:
             det = modelo.predict(img.crop((x0, y0, x1, y1)), threshold=umbral)
             for b, p in zip(det.xyxy, det.confidence):
                 bx0, by0, bx1, by1 = float(b[0]) + x0, float(b[1]) + y0, float(b[2]) + x0, float(b[3]) + y0
                 # caja pegada al borde interior de un trozo: probablemente cortada; baja su puntaje
-                borde = min(bx0 - x0, by0 - y0, x1 - bx1, y1 - by1) if n_teselas > 1 else 99
+                completa = (x0, y0, x1, y1) == (0, 0, img.width, img.height)
+                borde = 99 if completa else min(bx0 - x0, by0 - y0, x1 - bx1, y1 - by1)
                 interior = not (bx0 <= 1 or by0 <= 1 or bx1 >= img.width - 1 or by1 >= img.height - 1)
                 cajas.append((bx0, by0, bx1, by1, float(p) * (0.5 if borde < 3 and interior else 1.0)))
         return cajas
@@ -263,6 +285,9 @@ def autoprueba():
         revisar(tareas[0]['data']['image'] == '/data/local-files/?d=fotos/M201_LS_01.jpg', 'ruta de la imagen')
         revisar(os.path.isfile(os.path.join(d, 'vista', 'M201_LS_01_vista.jpg')), 'genera la vista previa')
         revisar(especies_planilla(planilla)['M201'][0] == 'cholga', 'especie desde la planilla')
+        pedazos = limpiar([(0, 0, 100, 200, 0.9), (0, 0, 100, 95, 0.95), (0, 105, 100, 200, 0.8), (300, 0, 340, 40, 0.7)], None)
+        revisar(len(pedazos) == 2 and (0, 0, 100, 200, 0.9) in pedazos,
+                f'los pedazos de una concha cortada se descartan y quedan las conchas enteras: {pedazos}')
         t = teselas(1600, 1200, 3)
         revisar(len(t) == 9 and t[0][:2] == (0, 0) and t[-1][2:] == (1600, 1200) and t[1][0] < t[0][2],
                 f'teselas 3×3 cubren la foto y se solapan: {t[:2]}…{t[-1]}')
