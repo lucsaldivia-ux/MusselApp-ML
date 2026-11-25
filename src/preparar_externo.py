@@ -6,7 +6,8 @@ interesa que el modelo aprenda a encontrar "un mejillón", así que:
 - se quedan solo las anotaciones de la clase de mejillón (nombre que contenga "mussel" o "mejill");
 - percebes y ostras se quitan (las fotos se conservan: enseñan qué NO es un mejillón);
 - se descarta la categoría "padre" que agrega Roboflow (supercategory "none");
-- si el export no trae `test/`, se copia `valid/` (RF-DETR lo usa para la evaluación final).
+- si el export trae solo `train/` (así viene el de Stephen), se separa en 80 % / 10 % / 10 % con semilla fija;
+  si trae `train/` y `valid/` pero no `test/`, se copia `valid/` (RF-DETR lo usa para la evaluación final).
 
 Después, el entrenamiento con nuestras fotos parte de estos pesos con 3 clases (chorito, cholga, referencia): RF-DETR
 reemplaza la capa de clases y conserva lo aprendido para encontrar individuos.
@@ -18,6 +19,7 @@ Uso:
 import argparse
 import json
 import os
+import random
 import shutil
 import sys
 import tempfile
@@ -57,6 +59,32 @@ def buscar_raiz(carpeta):
     raise SystemExit(f'No encuentro train/_annotations.coco.json dentro de {carpeta} (¿se exportó en formato COCO?)')
 
 
+def separar_train(salida, semilla=42, proporciones=(0.8, 0.1)):
+    """Reparte train/ en train, valid y test cuando el export no trae validación."""
+    carpeta = os.path.join(salida, 'train')
+    coco = json.load(open(os.path.join(carpeta, '_annotations.coco.json'), encoding='utf-8'))
+    imagenes = sorted(coco['images'], key=lambda im: im['id'])
+    random.Random(semilla).shuffle(imagenes)
+    n = len(imagenes)
+    corte1, corte2 = int(n * proporciones[0]), int(n * (proporciones[0] + proporciones[1]))
+    grupos = {'train': imagenes[:corte1], 'valid': imagenes[corte1:corte2], 'test': imagenes[corte2:]}
+    os.rename(carpeta, carpeta + '_todo')
+    origen = carpeta + '_todo'
+    resumen = {}
+    for split, ims in grupos.items():
+        destino = os.path.join(salida, split)
+        os.makedirs(destino)
+        ids = {im['id'] for im in ims}
+        anots = [a for a in coco['annotations'] if a['image_id'] in ids]
+        for im in ims:
+            shutil.move(os.path.join(origen, im['file_name']), os.path.join(destino, im['file_name']))
+        json.dump({'images': ims, 'annotations': anots, 'categories': coco['categories']},
+                  open(os.path.join(destino, '_annotations.coco.json'), 'w', encoding='utf-8'))
+        resumen[split] = (len(ims), len(anots), 'separado de train')
+    shutil.rmtree(origen)
+    return resumen
+
+
 def preparar(entrada, salida):
     temporal = None
     if zipfile.is_zipfile(entrada):
@@ -82,16 +110,18 @@ def preparar(entrada, salida):
         json.dump(nuevo, open(os.path.join(destino, '_annotations.coco.json'), 'w', encoding='utf-8'))
         quitadas = len(coco['annotations']) - len(nuevo['annotations'])
         resumen[split] = (len(coco['images']), len(nuevo['annotations']), quitadas)
-    if 'train' not in resumen or 'valid' not in resumen:
-        raise SystemExit('El export debe traer al menos train/ y valid/')
-    if 'test' not in resumen:
+    if 'train' not in resumen:
+        raise SystemExit('El export debe traer al menos train/')
+    if 'valid' not in resumen:
+        resumen = separar_train(salida)
+    elif 'test' not in resumen:
         shutil.copytree(os.path.join(salida, 'valid'), os.path.join(salida, 'test'))
         resumen['test'] = resumen['valid'][:2] + ('copia de valid',)
     if temporal:
         shutil.rmtree(temporal, ignore_errors=True)
     for split, datos in resumen.items():
         print(f'{split}: {datos[0]} fotos, {datos[1]} mejillones' + (f', {datos[2]} anotaciones de otras clases quitadas'
-              if isinstance(datos[2], int) else ' (copia de valid)'))
+              if isinstance(datos[2], int) else f' ({datos[2]})'))
     return resumen
 
 
