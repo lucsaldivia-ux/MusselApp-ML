@@ -10,7 +10,7 @@ En `app/src/main/assets/ml/`:
 | Archivo | Contenido |
 |---|---|
 | `model_vN.tflite` | Modelo cuantizado (int8; fp16 si int8 pierde más de 3 puntos de mAP) |
-| `labels.txt` | Una etiqueta por línea, en este orden: `chorito`, `cholga`, `referencia` |
+| `labels.txt` | Una etiqueta por línea, en este orden: `chorito`, `cholga`, `referencia` (columnas 1, 2 y 3 de los puntajes) |
 | `modelo.json` | Descripción de entrada y salida (abajo) |
 
 ## modelo.json
@@ -29,16 +29,21 @@ Modelo: **RF-DETR Nano** (Apache 2.0), exportado con `rfdetr==1.12.0` (ver `note
 }
 ```
 
-Lo que hay que saber en la app (de la documentación de RF-DETR, 6-nov-2026):
+Lo que hay que saber en la app (**verificado el 2026-11-25** exportando RF-DETR Nano con `rfdetr==1.12.0`):
 
-- **Entrada:** imagen RGB redimensionada al tamaño del tensor de entrada (384×384 en Nano), en **float32** y
-  normalizada con media/desviación de ImageNet. No es uint8 de 0 a 255.
-- **Salidas sin nombre** (`output_0`, `output_1`): las **cajas** son el tensor de rango 3 con última dimensión 4
-  (centro x, centro y, ancho, alto, normalizados 0-1); los **puntajes** son el otro tensor de rango 3, a los que se
-  aplica sigmoide. ⚠ Con 3 clases, el tensor de puntajes también puede terminar en 4: identificar las salidas por
-  su **orden** con el archivo `.rfdetr.json` que acompaña a cada `.tflite`. Se confirma en el paso 9 con el modelo real.
-- **INT8 es de rango dinámico** (pesos int8, cálculos en float). Si pierde más de 3 puntos de mAP, se usa el FP16.
-- La exportación a TFLite de RF-DETR es **experimental**: si falla, la alternativa es ONNX Runtime para Android (MIT).
+| Tensor | Forma | Contenido |
+|---|---|---|
+| Entrada 0 | `[1, 384, 384, 3]` float32 | Imagen RGB redimensionada a 384×384, normalizada con media/desviación de ImageNet (no uint8) |
+| Salida 0 | `[1, 300, 4]` float32 | **Puntajes** sin sigmoide. Columna 0 sin uso; 1 = chorito, 2 = cholga, 3 = referencia |
+| Salida 1 | `[1, 300, 4]` float32 | **Cajas**: centro x, centro y, ancho y alto, normalizados 0-1 |
+
+- ⚠ Con 3 clases **las dos salidas miden `[1, 300, 4]`** y en INT8 pierden el nombre: se toman **por posición**
+  (0 = puntajes, 1 = cajas). En FP16/FP32 se llaman `labels` y `dets`.
+- El índice de clase es el `category_id` del COCO con que se entrenó (1 a 3); la columna 0 se ignora.
+- Post-proceso en la app: `SalidaRfDetr.decodificar(...)` (rama `feature/ml-reglas` de la app), con pruebas.
+- Tamaños: INT8 de rango dinámico ~30 MB (el que va en la app), FP16 ~55 MB, FP32 ~109 MB.
+- Si INT8 pierde más de 3 puntos de mAP frente a FP32, se usa FP16.
+- La exportación a TFLite de RF-DETR es **experimental**; la alternativa es ONNX Runtime para Android (MIT).
 
 ## Formato en Firestore (lo que sube la app y lee el portal)
 
