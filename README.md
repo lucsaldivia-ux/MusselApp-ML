@@ -20,6 +20,7 @@ Entrenamiento del modelo de **conteo automático de mitílidos** (chorito / chol
 notebooks/   entrenar_rfdetr.ipynb (Colab gratis: prepara, entrena, mide y exporta)
 src/         split_sin_fuga.py (separa entrenamiento/validación/prueba por bandeja)
              validar_calibre.py (mide el error del calibre contra la regla: meta del go/no-go)
+             evaluar_tflite.py (mide el .tflite de la app contra las metas del go/no-go, como el teléfono)
              dataset_sintetico.py (fotos dibujadas para probar el pipeline sin fotos reales)
 modelos/     README.md con la versión, métricas y fecha de cada modelo
 CONTRATO.md  formato del modelo que espera la app (no cambiar sin avisar a Ramón)
@@ -55,6 +56,24 @@ python src/validar_calibre.py --prueba   # autoprueba con fotos dibujadas de lar
 
 Usa el mismo cálculo que `Calibre.kt` en la app (referencia → mm por píxel, Otsu, mancha más grande y eje mayor
 por PCA). Con las etiquetas mide solo el calibre; con las predicciones del modelo en formato COCO mide el conjunto.
+
+## Evaluar el `.tflite` que va en la app
+
+El notebook mide el modelo de PyTorch; en el teléfono corre el `.tflite` INT8. Este script mide ese archivo con el
+mismo preproceso y post-proceso que la app (sigmoide, umbral 0,40 y duplicados) y lo compara con FP16/FP32:
+
+```
+python src/evaluar_tflite.py --dataset dataset_v1 --modelo model_v1_int8.tflite --modelo model_v1_fp32.tflite
+python src/evaluar_tflite.py --dataset dataset_v1 --modelo model_v1_int8.tflite --predicciones pred.json
+python src/evaluar_tflite.py --prueba
+```
+
+`--predicciones` guarda lo detectado en formato COCO y sirve como `--coco` de `validar_calibre.py` (detector + calibre
+juntos). Necesita `tensorflow` (usa XNNPACK como Android). **Ojo:** en Windows, el intérprete de `ai-edge-litert` 2.1
+corre sin XNNPACK: tarda ~12 veces más y el FP16 da resultados erróneos (28,8 % de precisión). No sirve para medir.
+
+Con `model-v0-sintetico` (12 fotos sintéticas de prueba): INT8 error de conteo 1,4 %, recall de chorito 98,3 %,
+confusión 0 %, referencia en el 100 % de las fotos, 0,22 s por foto en el PC.
 
 ## Equipo
 
