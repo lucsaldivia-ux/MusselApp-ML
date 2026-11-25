@@ -61,9 +61,21 @@ y, en bandejas mezcladas, cambiar `duda` por la especie.
    predicción): ábrela, corrige y envía.
 
 Si el paso 4–5 da problemas, se etiqueta como siempre (subiendo las fotos), y las vistas previas sirven de guía.
-Probado con fotos reales de cholgas (en olla, sin bandeja): en acercamientos encuentra todas; en montones con
-umbral 0,15–0,20 propone unas 10 de ~20 (las tapadas por otras no). Con conchas separadas en bandeja debería
-rendir mucho mejor. La importación en Label Studio **no está probada** todavía.
+**Muestras densas → `--teselas 3`.** El modelo ve cada foto a 384 px; con cientos de conchas cada una queda de pocos
+píxeles y no encuentra casi ninguna. Con teselas parte la foto en 3×3 trozos solapados, suma la foto completa y
+descarta los pedazos de conchas cortadas por el borde de un trozo.
+
+Probado (modelo pre-entrenado, sin nuestras fotos todavía), en las 14 fotos reales del caso ALDEMAR:
+
+| Foto | Sin teselas | `--teselas 3` |
+|---|---|---|
+| Muestra completa amontonada en bandeja (~200 o más) | 0 | 150 |
+| 30 choritos medidos, en filas | 30 | 30 |
+| 2 choritos | 2 | 2 |
+| 1 chorito en el pie de metro | 1 | 1–7 (falsos sobre el instrumento) |
+
+En cholgas cocidas en olla (no es el caso de uso), los acercamientos salen bien y en montones propone ~10 de ~20.
+La importación en Label Studio **no está probada** todavía.
 
 ```
 python src/preetiquetar.py --prueba
