@@ -19,6 +19,8 @@ Entrenamiento del modelo de **conteo automático de mitílidos** (chorito / chol
 ```
 notebooks/   entrenar_rfdetr.ipynb (Colab gratis: prepara, entrena, mide y exporta)
 src/         split_sin_fuga.py (separa entrenamiento/validación/prueba por bandeja)
+             validar_calibre.py (mide el error del calibre contra la regla: meta del go/no-go)
+             dataset_sintetico.py (fotos dibujadas para probar el pipeline sin fotos reales)
 modelos/     README.md con la versión, métricas y fecha de cada modelo
 CONTRATO.md  formato del modelo que espera la app (no cambiar sin avisar a Ramón)
 ```
@@ -39,6 +41,20 @@ Las fotos de una misma bandeja nunca deben quedar en conjuntos distintos:
 ```
 python src/split_sin_fuga.py etiquetas/*.json --salida dataset_v1/split --semilla 42
 ```
+
+## Medir el error del calibre (meta: ≤ 3 mm)
+
+En cada bandeja del set de calibre se toma una foto extra terminada en `_cal` (`M002_JC_cal.jpg`) con **solo los
+5 individuos medidos, en fila de izquierda a derecha en el orden 1..5 de la planilla**, más la referencia.
+Se etiqueta como las demás. Luego, con la planilla exportada a CSV:
+
+```
+python src/validar_calibre.py --coco etiquetas.json --imagenes dataset_v1/crudas --planilla planilla_fotos.csv
+python src/validar_calibre.py --prueba   # autoprueba con fotos dibujadas de largo conocido
+```
+
+Usa el mismo cálculo que `Calibre.kt` en la app (referencia → mm por píxel, Otsu, mancha más grande y eje mayor
+por PCA). Con las etiquetas mide solo el calibre; con las predicciones del modelo en formato COCO mide el conjunto.
 
 ## Equipo
 
